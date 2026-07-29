@@ -313,32 +313,180 @@ function init() {
   animId = requestAnimationFrame(loop);
 }
 
+function moveLeft() {
+  if (!collide(current.shape, current.x - 1, current.y)) current.x--;
+}
+
+function moveRight() {
+  if (!collide(current.shape, current.x + 1, current.y)) current.x++;
+}
+
+function rotatePiece() {
+  tryRotate();
+}
+
+function softDropAction() {
+  softDrop();
+}
+
+function hardDropAction() {
+  hardDrop();
+}
+
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
-      if (!collide(current.shape, current.x - 1, current.y)) current.x--;
+      moveLeft();
       break;
     case 'ArrowRight':
-      if (!collide(current.shape, current.x + 1, current.y)) current.x++;
+      moveRight();
       break;
     case 'ArrowDown':
-      softDrop();
+      softDropAction();
       break;
     case 'ArrowUp':
     case 'KeyX':
-      tryRotate();
+      rotatePiece();
       break;
     case 'Space':
       e.preventDefault();
-      hardDrop();
+      hardDropAction();
       break;
   }
   updateHUD();
 });
 
 restartBtn.addEventListener('click', init);
+
+// ---- Controles táctiles (gestos) ----
+const gameContainer = document.querySelector('.game-container');
+
+const SWIPE_H_THRESHOLD = 28; // px por columna movida
+const SWIPE_V_THRESHOLD = 28; // px por paso de soft drop
+const TAP_MAX_DURATION = 200; // ms
+const TAP_MAX_DISTANCE = 12; // px
+const FAST_DROP_MIN_DISTANCE = 80; // px hacia abajo
+const FAST_DROP_MAX_DURATION = 250; // ms
+
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+let touchLastX = 0;
+let touchLastY = 0;
+let touchMoved = false;
+
+function handleTouchStart(e) {
+  if (e.touches.length !== 1) return;
+  const touch = e.touches[0];
+  touchStartX = touchLastX = touch.clientX;
+  touchStartY = touchLastY = touch.clientY;
+  touchStartTime = performance.now();
+  touchMoved = false;
+}
+
+function handleTouchMove(e) {
+  if (e.touches.length !== 1) return;
+  e.preventDefault();
+  if (paused || gameOver) return;
+
+  const touch = e.touches[0];
+  const dx = touch.clientX - touchLastX;
+  const dy = touch.clientY - touchLastY;
+  let changed = false;
+
+  if (Math.abs(dx) >= SWIPE_H_THRESHOLD) {
+    if (dx > 0) moveRight(); else moveLeft();
+    touchLastX = touch.clientX;
+    touchMoved = true;
+    changed = true;
+  }
+  if (dy >= SWIPE_V_THRESHOLD) {
+    softDropAction();
+    touchLastY = touch.clientY;
+    touchMoved = true;
+    changed = true;
+  }
+  if (changed) updateHUD();
+}
+
+function handleTouchEnd(e) {
+  if (paused || gameOver) return;
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX;
+  const dy = touch.clientY - touchStartY;
+  const duration = performance.now() - touchStartTime;
+
+  if (!touchMoved && Math.abs(dx) < TAP_MAX_DISTANCE && Math.abs(dy) < TAP_MAX_DISTANCE && duration < TAP_MAX_DURATION) {
+    rotatePiece();
+    updateHUD();
+  } else if (dy >= FAST_DROP_MIN_DISTANCE && duration < FAST_DROP_MAX_DURATION) {
+    hardDropAction();
+    updateHUD();
+  }
+}
+
+gameContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
+gameContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+gameContainer.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+// ---- Botonera táctil virtual ----
+function bindHoldButton(id, action, repeatDelay, repeatInterval) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  let timeoutId = null;
+  let intervalId = null;
+
+  const trigger = () => {
+    if (paused || gameOver) return;
+    action();
+    updateHUD();
+  };
+
+  const start = e => {
+    e.preventDefault();
+    btn.classList.add('active');
+    trigger();
+    timeoutId = setTimeout(() => {
+      intervalId = setInterval(trigger, repeatInterval);
+    }, repeatDelay);
+  };
+
+  const stop = () => {
+    btn.classList.remove('active');
+    clearTimeout(timeoutId);
+    clearInterval(intervalId);
+  };
+
+  btn.addEventListener('pointerdown', start);
+  btn.addEventListener('pointerup', stop);
+  btn.addEventListener('pointerleave', stop);
+  btn.addEventListener('pointercancel', stop);
+}
+
+function bindTapButton(id, action) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    btn.classList.add('active');
+    if (!paused && !gameOver) {
+      action();
+      updateHUD();
+    }
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt =>
+    btn.addEventListener(evt, () => btn.classList.remove('active'))
+  );
+}
+
+bindHoldButton('btn-left', moveLeft, 300, 120);
+bindHoldButton('btn-right', moveRight, 300, 120);
+bindHoldButton('btn-down', softDropAction, 200, 60);
+bindTapButton('btn-rotate', rotatePiece);
+bindTapButton('btn-drop', hardDropAction);
 
 initTheme();
 init();
