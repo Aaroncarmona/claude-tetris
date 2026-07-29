@@ -178,6 +178,14 @@ function lockPiece() {
   merge();
   clearLines();
   spawn();
+  if (mp.enabled && mp.myTurn) {
+    if (gameOver) {
+      mpSend('game-over', { state: snapshotState() });
+    } else {
+      mpSend('turn-change', { state: snapshotState() });
+      setMyTurn(false);
+    }
+  }
 }
 
 function spawn() {
@@ -267,6 +275,7 @@ function endGame() {
 
 function togglePause() {
   if (gameOver) return;
+  if (mp.enabled && !mp.myTurn) return;
   paused = !paused;
   if (!paused) {
     lastTime = performance.now();
@@ -287,6 +296,7 @@ function loop(ts) {
     dropAccum = 0;
     if (!collide(current.shape, current.x, current.y + 1)) {
       current.y++;
+      mpSyncIfActive();
     } else {
       lockPiece();
       if (gameOver) return;
@@ -337,6 +347,7 @@ function hardDropAction() {
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
+  if (mp.enabled && !mp.myTurn) return;
   switch (e.code) {
     case 'ArrowLeft':
       moveLeft();
@@ -357,9 +368,22 @@ document.addEventListener('keydown', e => {
       break;
   }
   updateHUD();
+  mpSyncIfActive();
 });
 
-restartBtn.addEventListener('click', init);
+restartBtn.addEventListener('click', () => {
+  if (mp.enabled) {
+    if (!mp.isHost) {
+      mpSetStatus('Solo el anfitrión puede reiniciar la partida.');
+      return;
+    }
+    init();
+    mpSend('start', { state: snapshotState() });
+    setMyTurn(true);
+  } else {
+    init();
+  }
+});
 
 // ---- Controles táctiles (gestos) ----
 const gameContainer = document.querySelector('.game-container');
@@ -391,6 +415,7 @@ function handleTouchMove(e) {
   if (e.touches.length !== 1) return;
   e.preventDefault();
   if (paused || gameOver) return;
+  if (mp.enabled && !mp.myTurn) return;
 
   const touch = e.touches[0];
   const dx = touch.clientX - touchLastX;
@@ -409,11 +434,15 @@ function handleTouchMove(e) {
     touchMoved = true;
     changed = true;
   }
-  if (changed) updateHUD();
+  if (changed) {
+    updateHUD();
+    mpSyncIfActive();
+  }
 }
 
 function handleTouchEnd(e) {
   if (paused || gameOver) return;
+  if (mp.enabled && !mp.myTurn) return;
   const touch = e.changedTouches[0];
   const dx = touch.clientX - touchStartX;
   const dy = touch.clientY - touchStartY;
@@ -422,9 +451,11 @@ function handleTouchEnd(e) {
   if (!touchMoved && Math.abs(dx) < TAP_MAX_DISTANCE && Math.abs(dy) < TAP_MAX_DISTANCE && duration < TAP_MAX_DURATION) {
     rotatePiece();
     updateHUD();
+    mpSyncIfActive();
   } else if (dy >= FAST_DROP_MIN_DISTANCE && duration < FAST_DROP_MAX_DURATION) {
     hardDropAction();
     updateHUD();
+    mpSyncIfActive();
   }
 }
 
@@ -441,8 +472,10 @@ function bindHoldButton(id, action, repeatDelay, repeatInterval) {
 
   const trigger = () => {
     if (paused || gameOver) return;
+    if (mp.enabled && !mp.myTurn) return;
     action();
     updateHUD();
+    mpSyncIfActive();
   };
 
   const start = e => {
@@ -473,9 +506,10 @@ function bindTapButton(id, action) {
   btn.addEventListener('pointerdown', e => {
     e.preventDefault();
     btn.classList.add('active');
-    if (!paused && !gameOver) {
+    if (!paused && !gameOver && !(mp.enabled && !mp.myTurn)) {
       action();
       updateHUD();
+      mpSyncIfActive();
     }
   });
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt =>
@@ -488,6 +522,221 @@ bindHoldButton('btn-right', moveRight, 300, 120);
 bindHoldButton('btn-down', softDropAction, 200, 60);
 bindTapButton('btn-rotate', rotatePiece);
 bindTapButton('btn-drop', hardDropAction);
+
+// ---- Multijugador P2P (WebRTC, handshake manual, sin servidor) ----
+const mpToggleBtn = document.getElementById('mp-toggle');
+const mpModal = document.getElementById('mp-modal');
+const mpModalClose = document.getElementById('mp-modal-close');
+const mpTabHost = document.getElementById('mp-tab-host');
+const mpTabGuest = document.getElementById('mp-tab-guest');
+const mpHostPanel = document.getElementById('mp-host-panel');
+const mpGuestPanel = document.getElementById('mp-guest-panel');
+const mpHostGenerateBtn = document.getElementById('mp-host-generate');
+const mpHostOfferEl = document.getElementById('mp-host-offer');
+const mpHostCopyBtn = document.getElementById('mp-host-copy');
+const mpHostAnswerEl = document.getElementById('mp-host-answer');
+const mpHostConnectBtn = document.getElementById('mp-host-connect');
+const mpGuestOfferEl = document.getElementById('mp-guest-offer');
+const mpGuestJoinBtn = document.getElementById('mp-guest-join');
+const mpGuestAnswerEl = document.getElementById('mp-guest-answer');
+const mpGuestCopyBtn = document.getElementById('mp-guest-copy');
+const mpStatusEl = document.getElementById('mp-status');
+const mpBadge = document.getElementById('mp-status-badge');
+const turnBanner = document.getElementById('turn-banner');
+const mpDimmable = document.getElementById('mp-dimmable');
+
+const mp = {
+  enabled: false,
+  isHost: false,
+  myTurn: false,
+  channel: null,
+};
+
+let mpRole = null;
+let hostSession = null;
+let guestSession = null;
+
+function mpSetStatus(text) {
+  mpStatusEl.textContent = text;
+}
+
+function mpSend(type, data) {
+  TetrisRTC.send(mp.channel, Object.assign({ type }, data));
+}
+
+function mpSyncIfActive() {
+  if (mp.enabled && mp.myTurn) mpSend('state', { state: snapshotState() });
+}
+
+function snapshotState() {
+  return { board, current, next, score, lines, level, dropInterval, gameOver };
+}
+
+function applyState(state) {
+  board = state.board;
+  current = state.current;
+  next = state.next;
+  score = state.score;
+  lines = state.lines;
+  level = state.level;
+  dropInterval = state.dropInterval;
+  gameOver = state.gameOver;
+  updateHUD();
+  drawNext();
+  draw();
+}
+
+function setMyTurn(isMine) {
+  mp.myTurn = isMine;
+  if (isMine) {
+    turnBanner.classList.add('hidden');
+    mpDimmable.classList.remove('waiting');
+    dropAccum = 0;
+    lastTime = performance.now();
+    cancelAnimationFrame(animId);
+    if (!gameOver && !paused) animId = requestAnimationFrame(loop);
+  } else {
+    turnBanner.classList.remove('hidden');
+    mpDimmable.classList.add('waiting');
+    cancelAnimationFrame(animId);
+  }
+}
+
+function handleRemoteMessage(msg) {
+  switch (msg.type) {
+    case 'start':
+      overlay.classList.add('hidden');
+      applyState(msg.state);
+      setMyTurn(false);
+      mpSetStatus('¡Conectado! Es el turno del anfitrión.');
+      break;
+    case 'state':
+      applyState(msg.state);
+      break;
+    case 'turn-change':
+      applyState(msg.state);
+      setMyTurn(true);
+      break;
+    case 'game-over':
+      applyState(msg.state);
+      turnBanner.classList.add('hidden');
+      mpDimmable.classList.remove('waiting');
+      endGame();
+      break;
+  }
+}
+
+function onChannelOpen() {
+  mp.enabled = true;
+  mp.isHost = mpRole === 'host';
+  mp.channel = mp.isHost ? hostSession.channel : guestSession.getChannel();
+  mpBadge.textContent = mp.isHost ? '🌐 Multijugador — Anfitrión' : '🌐 Multijugador — Invitado';
+  mpBadge.classList.remove('hidden');
+  mpSetStatus('¡Conectado!');
+  setTimeout(() => mpModal.classList.add('hidden'), 600);
+  if (mp.isHost) {
+    init();
+    mpSend('start', { state: snapshotState() });
+    setMyTurn(true);
+  }
+}
+
+function onChannelClose() {
+  if (!mp.enabled) return;
+  mp.enabled = false;
+  mpBadge.classList.add('hidden');
+  turnBanner.classList.add('hidden');
+  mpDimmable.classList.remove('waiting');
+  mpSetStatus('Conexión perdida. Volviendo a modo un jugador.');
+  if (!gameOver && !paused) {
+    cancelAnimationFrame(animId);
+    dropAccum = 0;
+    lastTime = performance.now();
+    animId = requestAnimationFrame(loop);
+  }
+}
+
+function mpSwitchTab(tab) {
+  mpTabHost.classList.toggle('active', tab === 'host');
+  mpTabGuest.classList.toggle('active', tab === 'guest');
+  mpHostPanel.classList.toggle('hidden', tab !== 'host');
+  mpGuestPanel.classList.toggle('hidden', tab !== 'guest');
+  mpSetStatus('');
+}
+
+mpTabHost.addEventListener('click', () => mpSwitchTab('host'));
+mpTabGuest.addEventListener('click', () => mpSwitchTab('guest'));
+
+mpToggleBtn.addEventListener('click', () => mpModal.classList.remove('hidden'));
+mpModalClose.addEventListener('click', () => mpModal.classList.add('hidden'));
+
+mpHostGenerateBtn.addEventListener('click', async () => {
+  mpHostGenerateBtn.disabled = true;
+  mpSetStatus('Generando código de invitación...');
+  try {
+    mpRole = 'host';
+    hostSession = await TetrisRTC.createHost({
+      onOpen: onChannelOpen,
+      onClose: onChannelClose,
+      onMessage: handleRemoteMessage,
+    });
+    const code = await hostSession.createOfferCode();
+    mpHostOfferEl.value = code;
+    mpSetStatus('Comparte este código con tu rival y espera su respuesta.');
+  } catch (err) {
+    mpSetStatus('Error al generar el código: ' + err.message);
+  } finally {
+    mpHostGenerateBtn.disabled = false;
+  }
+});
+
+mpHostConnectBtn.addEventListener('click', async () => {
+  if (!hostSession) { mpSetStatus('Primero genera tu código.'); return; }
+  const code = mpHostAnswerEl.value.trim();
+  if (!code) { mpSetStatus('Pega el código de tu rival primero.'); return; }
+  try {
+    mpSetStatus('Conectando...');
+    await hostSession.acceptAnswerCode(code);
+  } catch (err) {
+    mpSetStatus('Código inválido: ' + err.message);
+  }
+});
+
+mpGuestJoinBtn.addEventListener('click', async () => {
+  const code = mpGuestOfferEl.value.trim();
+  if (!code) { mpSetStatus('Pega el código del anfitrión primero.'); return; }
+  mpGuestJoinBtn.disabled = true;
+  try {
+    mpSetStatus('Procesando código...');
+    mpRole = 'guest';
+    guestSession = await TetrisRTC.createGuest({
+      onOpen: onChannelOpen,
+      onClose: onChannelClose,
+      onMessage: handleRemoteMessage,
+    });
+    const answerCode = await guestSession.acceptOfferAndCreateAnswerCode(code);
+    mpGuestAnswerEl.value = answerCode;
+    mpSetStatus('Envía este código al anfitrión y espera a que confirme.');
+  } catch (err) {
+    mpSetStatus('Código inválido: ' + err.message);
+  } finally {
+    mpGuestJoinBtn.disabled = false;
+  }
+});
+
+function mpCopyToClipboard(textarea) {
+  textarea.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(textarea.value).catch(() => {
+      try { document.execCommand('copy'); } catch (e) { /* portapapeles no disponible */ }
+    });
+  } else {
+    try { document.execCommand('copy'); } catch (e) { /* portapapeles no disponible */ }
+  }
+}
+
+mpHostCopyBtn.addEventListener('click', () => mpCopyToClipboard(mpHostOfferEl));
+mpGuestCopyBtn.addEventListener('click', () => mpCopyToClipboard(mpGuestAnswerEl));
 
 initTheme();
 init();
