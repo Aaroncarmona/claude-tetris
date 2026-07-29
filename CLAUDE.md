@@ -23,7 +23,7 @@ Then visit `http://localhost:8000`. There are no automated tests in this repo.
 
 Four files, no modules/bundler — everything is loaded via plain `<script>` tags in `index.html`:
 
-- **`index.html`** — DOM structure: main `<canvas id="board">` (300×600), a `<canvas id="next-canvas">` for the next-piece preview, the score/lines/level panel, the pause/game-over overlay, and the multiplayer modal/badge/notice elements.
+- **`index.html`** — DOM structure: main `<canvas id="board">` (300×600), a top bar (`.topbar`) with the score/lines/level stats and the `<canvas id="next-canvas">` next-piece preview, the pause/game-over overlay, and the multiplayer modal/badge/notice elements. No on-screen help text or virtual button pad — see Controls.
 - **`style.css`** — dark/retro arcade visual theme.
 - **`game.js`** — all game logic (single file, no classes, module-level `let` state), plus the multiplayer UI wiring at the bottom.
 - **`webrtc.js`** — `TetrisRTC`, the serverless WebRTC transport used by multiplayer (loaded before `game.js`).
@@ -59,4 +59,15 @@ Four files, no modules/bundler — everything is loaded via plain `<script>` tag
 
 ## Controls
 
-`←`/`→` move, `↑` or `X` rotate CW, `↓` soft drop, `Space` hard drop, `P` pause/resume.
+Keyboard: `←`/`→` move, `↑` or `X` rotate CW, `↓` soft drop, `Space` hard drop, `P` pause/resume.
+
+Touch: gestures only, no virtual button pad. Swipe ←/→ moves, swipe ↓ soft-drops, a short tap rotates, a fast downward swipe hard-drops (`handleTouchStart`/`handleTouchMove`/`handleTouchEnd` in `game.js`). There is intentionally no on-screen controls legend — the UI is kept clean; if controls change, update this section instead of adding UI text back.
+
+### Mobile layout & iOS double-tap zoom
+
+Layout is mobile-first: `.wrapper` fills `100dvh` in a column flex (`.topbar` fixed height, `.game-container` flex:1), and `#board` sizes by **height** (`height: 100%`, `aspect-ratio: 1/2`) so it always fits the viewport instead of being cut off — a `@media (min-width: 641px) and (pointer: fine)` block relaxes this back to a fixed 600px board and shows `.game-title` (hidden by default to save vertical space on phones).
+
+Double-tap-to-zoom prevention (Safari/WebKit) is layered:
+- Viewport meta already has `maximum-scale=1.0, user-scalable=no` (`index.html`).
+- `touch-action` is set explicitly per-container (it doesn't inherit): `manipulation` on `html`/`body`/`.wrapper`/`.topbar`/`.overlay` (allows taps, blocks native zoom/pan gestures), `none` on `.game-container`/`#board`/`#next-canvas` (no native gesture at all over the play area), and `auto` on `.mp-modal-box` (needs scroll + text selection for pasting codes).
+- `game.js` tracks `lastTouchEndTime`/`lastGlobalTouchEndTime` and calls `e.preventDefault()` on a `touchend` under `DOUBLE_TAP_MS` (300ms) since the previous one — both on the board (`handleTouchEnd`, listener registered `{ passive: false }`) and globally on `document` for taps outside the board. The global guard skips `button, input, textarea, select, a` targets so it doesn't break fast double-clicks on modal buttons or text selection in the code textareas.

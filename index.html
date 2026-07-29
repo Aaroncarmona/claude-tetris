@@ -19,57 +19,38 @@
     <h1 class="game-title">TETRIS</h1>
     <div id="mp-status-badge" class="mp-badge hidden"></div>
     <div id="mp-notice" class="mp-notice hidden"></div>
-    <div class="game-container">
-      <div class="mp-dimmable" id="mp-dimmable">
-        <canvas id="board" width="300" height="600"></canvas>
-
-        <aside class="panel">
-          <div class="panel-section">
+    <div class="mp-dimmable" id="mp-dimmable">
+      <header class="topbar">
+        <div class="stats">
+          <div class="stat">
             <span class="label">SCORE</span>
             <span class="value" id="score">0</span>
           </div>
-          <div class="panel-section">
+          <div class="stat">
             <span class="label">LINES</span>
             <span class="value" id="lines">0</span>
           </div>
-          <div class="panel-section">
+          <div class="stat">
             <span class="label">LEVEL</span>
             <span class="value" id="level">1</span>
           </div>
+        </div>
+        <div class="next-box">
+          <span class="label">NEXT</span>
+          <canvas id="next-canvas" width="120" height="120"></canvas>
+        </div>
+      </header>
 
-          <div class="panel-section">
-            <span class="label">NEXT</span>
-            <canvas id="next-canvas" width="120" height="120"></canvas>
+      <div class="game-container">
+        <canvas id="board" width="300" height="600"></canvas>
+        <div id="turn-banner" class="turn-banner hidden">⏳ Esperando el turno del oponente...</div>
+        <div id="overlay" class="overlay hidden">
+          <div class="overlay-box">
+            <p id="overlay-title">GAME OVER</p>
+            <p id="overlay-score"></p>
+            <button id="restart-btn">Reiniciar</button>
           </div>
-
-          <div class="panel-section controls">
-            <span class="label">CONTROLS</span>
-            <ul>
-              <li><kbd>←</kbd><kbd>→</kbd> mover</li>
-              <li><kbd>↑</kbd> rotar</li>
-              <li><kbd>↓</kbd> bajar</li>
-              <li><kbd>Space</kbd> caída</li>
-              <li><kbd>P</kbd> pausa</li>
-            </ul>
-          </div>
-        </aside>
-      </div>
-      <div id="turn-banner" class="turn-banner hidden">⏳ Esperando el turno del oponente...</div>
-    </div>
-
-    <div class="touch-controls" id="touch-controls">
-      <button class="tbtn" id="btn-left" type="button" aria-label="Mover izquierda">◀</button>
-      <button class="tbtn" id="btn-rotate" type="button" aria-label="Rotar pieza">⟳</button>
-      <button class="tbtn" id="btn-right" type="button" aria-label="Mover derecha">▶</button>
-      <button class="tbtn tbtn-wide" id="btn-down" type="button" aria-label="Caída suave">▼ SOFT DROP</button>
-      <button class="tbtn tbtn-wide" id="btn-drop" type="button" aria-label="Caída instantánea">DROP</button>
-    </div>
-
-    <div id="overlay" class="overlay hidden">
-      <div class="overlay-box">
-        <p id="overlay-title">GAME OVER</p>
-        <p id="overlay-score"></p>
-        <button id="restart-btn">Reiniciar</button>
+        </div>
       </div>
     </div>
 

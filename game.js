@@ -258,8 +258,24 @@ function drawNext() {
   const NB = 30;
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
   const shape = next.shape;
-  const offX = Math.floor((4 - shape[0].length) / 2);
-  const offY = Math.floor((4 - shape.length) / 2);
+
+  // Centrar por la caja delimitadora de celdas no vacías, no por el tamaño
+  // de la matriz: piezas como la T (3x3 con la última fila vacía) quedaban
+  // descolgadas en la caja al centrar sobre la matriz completa.
+  let minR = shape.length, maxR = -1, minC = shape[0].length, maxC = -1;
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
+      if (shape[r][c]) {
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+      }
+  const boundW = maxC - minC + 1;
+  const boundH = maxR - minR + 1;
+  const offX = (4 - boundW) / 2 - minC;
+  const offY = (4 - boundH) / 2 - minR;
+
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++)
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
@@ -393,6 +409,9 @@ restartBtn.addEventListener('click', () => {
 });
 
 // ---- Controles táctiles (gestos) ----
+// Todas las acciones se controlan por gesto sobre el tablero: no hay
+// botonera táctil. deslizar ←→ mueve, deslizar ↓ hace soft drop, un toque
+// corto rota, un deslizamiento rápido hacia abajo hace hard drop.
 const gameContainer = document.querySelector('.game-container');
 
 const SWIPE_H_THRESHOLD = 28; // px por columna movida
@@ -401,6 +420,7 @@ const TAP_MAX_DURATION = 200; // ms
 const TAP_MAX_DISTANCE = 12; // px
 const FAST_DROP_MIN_DISTANCE = 80; // px hacia abajo
 const FAST_DROP_MAX_DURATION = 250; // ms
+const DOUBLE_TAP_MS = 300; // umbral para bloquear el zoom por doble-tap en iOS
 
 let touchStartX = 0;
 let touchStartY = 0;
@@ -408,6 +428,7 @@ let touchStartTime = 0;
 let touchLastX = 0;
 let touchLastY = 0;
 let touchMoved = false;
+let lastTouchEndTime = 0;
 
 function handleTouchStart(e) {
   if (e.touches.length !== 1) return;
@@ -448,6 +469,12 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
+  // Bloqueo de doble-tap zoom (WebKit/iOS): si el toque anterior fue hace
+  // menos de DOUBLE_TAP_MS, se cancela el comportamiento nativo del segundo.
+  const now = performance.now();
+  if (now - lastTouchEndTime < DOUBLE_TAP_MS) e.preventDefault();
+  lastTouchEndTime = now;
+
   if (paused || gameOver) return;
   if (mp.enabled && !mp.myTurn) return;
   const touch = e.changedTouches[0];
@@ -468,67 +495,18 @@ function handleTouchEnd(e) {
 
 gameContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
 gameContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
-gameContainer.addEventListener('touchend', handleTouchEnd, { passive: true });
+gameContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
 
-// ---- Botonera táctil virtual ----
-function bindHoldButton(id, action, repeatDelay, repeatInterval) {
-  const btn = document.getElementById(id);
-  if (!btn) return;
-  let timeoutId = null;
-  let intervalId = null;
-
-  const trigger = () => {
-    if (paused || gameOver) return;
-    if (mp.enabled && !mp.myTurn) return;
-    action();
-    updateHUD();
-    mpSyncIfActive();
-  };
-
-  const start = e => {
-    e.preventDefault();
-    btn.classList.add('active');
-    trigger();
-    timeoutId = setTimeout(() => {
-      intervalId = setInterval(trigger, repeatInterval);
-    }, repeatDelay);
-  };
-
-  const stop = () => {
-    btn.classList.remove('active');
-    clearTimeout(timeoutId);
-    clearInterval(intervalId);
-  };
-
-  btn.addEventListener('pointerdown', start);
-  btn.addEventListener('pointerup', stop);
-  btn.addEventListener('pointerleave', stop);
-  btn.addEventListener('pointercancel', stop);
-}
-
-function bindTapButton(id, action) {
-  const btn = document.getElementById(id);
-  if (!btn) return;
-
-  btn.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    btn.classList.add('active');
-    if (!paused && !gameOver && !(mp.enabled && !mp.myTurn)) {
-      action();
-      updateHUD();
-      mpSyncIfActive();
-    }
-  });
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt =>
-    btn.addEventListener(evt, () => btn.classList.remove('active'))
-  );
-}
-
-bindHoldButton('btn-left', moveLeft, 300, 120);
-bindHoldButton('btn-right', moveRight, 300, 120);
-bindHoldButton('btn-down', softDropAction, 200, 60);
-bindTapButton('btn-rotate', rotatePiece);
-bindTapButton('btn-drop', hardDropAction);
+// Guard de doble-tap fuera del tablero (barra superior, márgenes). Excluye
+// elementos interactivos para no romper el doble-clic rápido en botones del
+// modal multijugador ni la selección de texto en los textareas de códigos.
+let lastGlobalTouchEndTime = 0;
+document.addEventListener('touchend', e => {
+  if (e.target.closest('button, input, textarea, select, a')) return;
+  const now = performance.now();
+  if (now - lastGlobalTouchEndTime < DOUBLE_TAP_MS) e.preventDefault();
+  lastGlobalTouchEndTime = now;
+}, { passive: false });
 
 // ---- Multijugador P2P (WebRTC, handshake manual, sin servidor) ----
 const mpToggleBtn = document.getElementById('mp-toggle');
