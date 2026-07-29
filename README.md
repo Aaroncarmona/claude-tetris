@@ -88,6 +88,8 @@ Después abre `http://localhost:8000` en el navegador.
 | `Espacio` | Hard drop (caída instantánea)     |
 | `P`       | Pausar / reanudar                 |
 
+En móvil no hay botonera ni leyenda de controles en pantalla: todo se juega por gestos sobre el tablero — deslizar ←/→ mueve, deslizar ↓ hace soft drop, un toque corto rota, un deslizamiento rápido hacia abajo hace hard drop.
+
 ---
 
 ## Cómo funciona
@@ -99,7 +101,7 @@ El juego se compone de tres archivos que cooperan:
 Define la estructura visual:
 
 - Un `<canvas id="board">` de **300 × 600** píxeles donde se renderiza el tablero.
-- Un panel lateral con `SCORE`, `LINES`, `LEVEL`, vista de la siguiente pieza y la lista de controles.
+- Una barra superior con `SCORE`, `LINES`, `LEVEL` y la vista de la siguiente pieza. Sin listas de controles ni botonera en pantalla — diseño limpio, solo tablero + turno + conexión + siguiente pieza.
 - Un overlay para los estados **PAUSA** y **GAME OVER**.
 
 ### 2. `style.css`
@@ -152,7 +154,7 @@ Modo opcional en el que dos jugadores comparten **un mismo tablero** y se turnan
 2. El **invitado** pega ese código en la pestaña "Unirse", pulsa "Unirse" y genera un código de respuesta que envía de vuelta al anfitrión.
 3. El anfitrión pega el código de respuesta y pulsa "Conectar". En cuanto el `RTCDataChannel` se abre, la partida arranca y el anfitrión mueve primero.
 
-**Lógica de turnos:** al fijarse una pieza (`lockPiece`), el estado del tablero se envía al rival por el `RTCDataChannel` y el turno cambia de jugador. Mientras un jugador espera su turno, todos sus controles (teclado, gestos táctiles, botonera) quedan bloqueados y ve el tablero atenuado (`grayscale` + opacidad reducida) con el aviso "Esperando el turno del oponente...", actualizado en tiempo real con cada movimiento del rival. El módulo de red vive en `webrtc.js`; la integración con el juego (estado de turno, envío/recepción de estado, UI de emparejamiento) está en `game.js`.
+**Lógica de turnos:** al fijarse una pieza (`lockPiece`), el estado del tablero se envía al rival por el `RTCDataChannel` y el turno cambia de jugador. Mientras un jugador espera su turno, todos sus controles (teclado, gestos táctiles) quedan bloqueados y ve el tablero atenuado (`grayscale` + opacidad reducida) con el aviso "Esperando el turno del oponente...", actualizado en tiempo real con cada movimiento del rival. El módulo de red vive en `webrtc.js`; la integración con el juego (estado de turno, envío/recepción de estado, UI de emparejamiento) está en `game.js`.
 
 > Nota: al ser P2P puro sin servidor TURN, la conexión puede fallar en redes con NAT simétrico o firewalls muy restrictivos.
 

@@ -45,6 +45,7 @@
 html, body {
   overflow: hidden;
   overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 body {
@@ -54,23 +55,33 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   user-select: none;
-  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   transition: background 0.2s, color 0.2s;
 }
 
 .wrapper {
   position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: env(safe-area-inset-top, 8px) env(safe-area-inset-right, 8px)
+    env(safe-area-inset-bottom, 8px) env(safe-area-inset-left, 8px);
+  touch-action: manipulation;
 }
 
 .top-actions {
-  position: absolute;
-  top: -4px;
-  right: -44px;
+  flex-shrink: 0;
+  align-self: flex-end;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
+  margin-bottom: 4px;
 }
 
 .icon-btn {
@@ -93,6 +104,7 @@ body {
 }
 
 .game-title {
+  display: none;
   text-align: center;
   font-size: 32px;
   font-weight: 800;
@@ -100,16 +112,17 @@ body {
   color: var(--accent);
   margin-bottom: 16px;
   text-shadow: 0 0 20px var(--title-shadow);
-}
-
-.game-container {
-  position: relative;
+  flex-shrink: 0;
 }
 
 .mp-dimmable {
   display: flex;
-  gap: 20px;
-  align-items: flex-start;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 320px;
+  gap: 10px;
   transition: filter 0.3s, opacity 0.3s;
 }
 
@@ -117,6 +130,44 @@ body {
   filter: grayscale(60%);
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* ---- Barra superior: puntuación + siguiente pieza ---- */
+.topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  touch-action: manipulation;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.next-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.game-container {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
 }
 
 .mp-badge {
@@ -175,28 +226,15 @@ body {
 
 #board {
   display: block;
-  width: 300px;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
   aspect-ratio: 1 / 2;
   touch-action: none;
   border: 1px solid var(--panel-border);
   background: var(--surface);
   border-radius: 4px;
   box-shadow: 0 0 40px var(--board-shadow);
-}
-
-/* ---- Panel lateral ---- */
-.panel {
-  width: 160px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding-top: 4px;
-}
-
-.panel-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .label {
@@ -208,7 +246,7 @@ body {
 
 .value {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 1px;
@@ -216,129 +254,40 @@ body {
 
 #next-canvas {
   display: block;
+  width: 56px;
+  height: 56px;
   border: 1px solid var(--panel-border);
   background: var(--surface);
   border-radius: 4px;
-}
-
-/* ---- Controles ---- */
-.controls ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.controls li {
-  font-size: 12px;
-  color: var(--control-text);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-kbd {
-  background: var(--kbd-bg);
-  border: 1px solid var(--kbd-border);
-  border-radius: 3px;
-  padding: 1px 6px;
-  font-size: 11px;
-  font-family: inherit;
-  color: var(--kbd-text);
-}
-
-/* ---- Botonera táctil (oculta en escritorio) ---- */
-.touch-controls {
-  display: none;
-}
-
-.tbtn {
-  background: var(--surface);
-  border: 1px solid var(--panel-border);
-  color: var(--fg);
-  border-radius: 8px;
-  font-size: 20px;
-  padding: 14px 0;
   touch-action: none;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.1s, color 0.1s;
 }
 
-.tbtn.active,
-.tbtn:active {
-  background: var(--accent);
-  color: var(--accent-contrast);
-}
-
-.tbtn-wide {
-  grid-column: span 3;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-/* ---- Layout responsive para móvil / pantallas táctiles ---- */
-@media (max-width: 640px), (pointer: coarse) {
+/* ---- Ajustes para escritorio: más aire, título visible ---- */
+@media (min-width: 641px) and (pointer: fine) {
   .wrapper {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 8px;
-  }
-
-  .top-actions {
-    position: static;
-    flex-direction: row;
-    align-self: flex-end;
-    margin-bottom: 4px;
+    height: auto;
+    padding: 20px;
   }
 
   .game-title {
-    font-size: 22px;
-    letter-spacing: 6px;
-    margin-bottom: 10px;
+    display: block;
   }
 
   .mp-dimmable {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
+    max-width: 460px;
   }
 
   #board {
-    width: min(90vw, 55vh);
-    max-width: 320px;
+    height: 600px;
   }
 
-  .panel {
-    width: 100%;
-    max-width: 320px;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    padding-top: 0;
-    gap: 10px;
-  }
-
-  .panel-section.controls {
-    display: none;
+  .value {
+    font-size: 26px;
   }
 
   #next-canvas {
-    width: 60px;
-    height: 60px;
-  }
-
-  .touch-controls {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    width: 100%;
-    max-width: 320px;
-    margin-top: 14px;
+    width: 70px;
+    height: 70px;
   }
 }
 
@@ -352,6 +301,7 @@ kbd {
   background: var(--overlay-bg);
   backdrop-filter: blur(4px);
   border-radius: 4px;
+  touch-action: manipulation;
 }
 
 .overlay.hidden {
@@ -427,6 +377,7 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  touch-action: auto;
 }
 
 .mp-modal-box h2 {
