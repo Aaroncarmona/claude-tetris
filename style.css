@@ -64,10 +64,16 @@ body {
   position: relative;
 }
 
-.theme-toggle {
+.top-actions {
   position: absolute;
   top: -4px;
   right: -44px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.icon-btn {
   width: 36px;
   height: 36px;
   display: flex;
@@ -82,7 +88,7 @@ body {
   transition: background 0.2s, border-color 0.2s;
 }
 
-.theme-toggle:hover {
+.icon-btn:hover {
   border-color: var(--accent);
 }
 
@@ -97,9 +103,57 @@ body {
 }
 
 .game-container {
+  position: relative;
+}
+
+.mp-dimmable {
   display: flex;
   gap: 20px;
   align-items: flex-start;
+  transition: filter 0.3s, opacity 0.3s;
+}
+
+.mp-dimmable.waiting {
+  filter: grayscale(60%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.mp-badge {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.mp-badge.hidden {
+  display: none;
+}
+
+.turn-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90%;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  pointer-events: none;
+  z-index: 5;
+  text-align: center;
+}
+
+.turn-banner.hidden {
+  display: none;
 }
 
 #board {
@@ -217,8 +271,9 @@ kbd {
     padding: 8px;
   }
 
-  .theme-toggle {
+  .top-actions {
     position: static;
+    flex-direction: row;
     align-self: flex-end;
     margin-bottom: 4px;
   }
@@ -229,7 +284,7 @@ kbd {
     margin-bottom: 10px;
   }
 
-  .game-container {
+  .mp-dimmable {
     flex-direction: column;
     align-items: center;
     gap: 12px;
@@ -323,4 +378,150 @@ kbd {
 
 #restart-btn:hover {
   opacity: 0.85;
+}
+
+/* ---- Modal de emparejamiento multijugador ---- */
+.mp-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 20;
+  padding: 16px;
+}
+
+.mp-modal.hidden {
+  display: none;
+}
+
+.mp-modal-box {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mp-modal-box h2 {
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.mp-hint {
+  font-size: 12px;
+  color: var(--control-text);
+  margin-bottom: 4px;
+}
+
+.mp-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.mp-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mp-tab {
+  flex: 1;
+  padding: 8px 0;
+  background: var(--kbd-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mp-tab.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+
+.mp-panel.hidden {
+  display: none;
+}
+
+.mp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mp-step {
+  font-size: 12px;
+  color: var(--control-text);
+  margin-top: 4px;
+}
+
+.mp-code {
+  width: 100%;
+  min-height: 70px;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.mp-action-btn,
+.mp-copy-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+
+.mp-action-btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.mp-copy-btn {
+  background: var(--kbd-bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+}
+
+.mp-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mp-status {
+  min-height: 16px;
+  font-size: 12px;
+  color: var(--accent);
+  text-align: center;
 }

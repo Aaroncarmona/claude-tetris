@@ -8,43 +8,52 @@
 </head>
 <body>
   <div class="wrapper">
-    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Cambiar a modo claro" aria-pressed="false">
-      <span aria-hidden="true">🌙</span>
-    </button>
+    <div class="top-actions">
+      <button id="mp-toggle" class="icon-btn" type="button" aria-label="Multijugador">
+        <span aria-hidden="true">🌐</span>
+      </button>
+      <button id="theme-toggle" class="icon-btn" type="button" aria-label="Cambiar a modo claro" aria-pressed="false">
+        <span aria-hidden="true">🌙</span>
+      </button>
+    </div>
     <h1 class="game-title">TETRIS</h1>
+    <div id="mp-status-badge" class="mp-badge hidden"></div>
     <div class="game-container">
-      <canvas id="board" width="300" height="600"></canvas>
+      <div class="mp-dimmable" id="mp-dimmable">
+        <canvas id="board" width="300" height="600"></canvas>
 
-      <aside class="panel">
-        <div class="panel-section">
-          <span class="label">SCORE</span>
-          <span class="value" id="score">0</span>
-        </div>
-        <div class="panel-section">
-          <span class="label">LINES</span>
-          <span class="value" id="lines">0</span>
-        </div>
-        <div class="panel-section">
-          <span class="label">LEVEL</span>
-          <span class="value" id="level">1</span>
-        </div>
+        <aside class="panel">
+          <div class="panel-section">
+            <span class="label">SCORE</span>
+            <span class="value" id="score">0</span>
+          </div>
+          <div class="panel-section">
+            <span class="label">LINES</span>
+            <span class="value" id="lines">0</span>
+          </div>
+          <div class="panel-section">
+            <span class="label">LEVEL</span>
+            <span class="value" id="level">1</span>
+          </div>
 
-        <div class="panel-section">
-          <span class="label">NEXT</span>
-          <canvas id="next-canvas" width="120" height="120"></canvas>
-        </div>
+          <div class="panel-section">
+            <span class="label">NEXT</span>
+            <canvas id="next-canvas" width="120" height="120"></canvas>
+          </div>
 
-        <div class="panel-section controls">
-          <span class="label">CONTROLS</span>
-          <ul>
-            <li><kbd>←</kbd><kbd>→</kbd> mover</li>
-            <li><kbd>↑</kbd> rotar</li>
-            <li><kbd>↓</kbd> bajar</li>
-            <li><kbd>Space</kbd> caída</li>
-            <li><kbd>P</kbd> pausa</li>
-          </ul>
-        </div>
-      </aside>
+          <div class="panel-section controls">
+            <span class="label">CONTROLS</span>
+            <ul>
+              <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+              <li><kbd>↑</kbd> rotar</li>
+              <li><kbd>↓</kbd> bajar</li>
+              <li><kbd>Space</kbd> caída</li>
+              <li><kbd>P</kbd> pausa</li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+      <div id="turn-banner" class="turn-banner hidden">⏳ Esperando el turno del oponente...</div>
     </div>
 
     <div class="touch-controls" id="touch-controls">
@@ -62,8 +71,45 @@
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>
+
+    <div id="mp-modal" class="mp-modal hidden">
+      <div class="mp-modal-box">
+        <button id="mp-modal-close" class="mp-modal-close" type="button" aria-label="Cerrar">✕</button>
+        <h2>Multijugador P2P</h2>
+        <p class="mp-hint">Sin servidores: comparte los códigos por WhatsApp, Telegram o donde quieras.</p>
+
+        <div class="mp-tabs">
+          <button id="mp-tab-host" class="mp-tab active" type="button">Crear sala</button>
+          <button id="mp-tab-guest" class="mp-tab" type="button">Unirse</button>
+        </div>
+
+        <div id="mp-host-panel" class="mp-panel">
+          <p class="mp-step">1. Genera tu código y envíaselo a tu rival.</p>
+          <button id="mp-host-generate" class="mp-action-btn" type="button">Generar código</button>
+          <textarea id="mp-host-offer" class="mp-code" readonly placeholder="Tu código aparecerá aquí..."></textarea>
+          <button id="mp-host-copy" class="mp-copy-btn" type="button">Copiar código</button>
+
+          <p class="mp-step">2. Pega aquí el código que te envíe tu rival y confirma.</p>
+          <textarea id="mp-host-answer" class="mp-code" placeholder="Pega aquí el código de tu rival..."></textarea>
+          <button id="mp-host-connect" class="mp-action-btn" type="button">Conectar</button>
+        </div>
+
+        <div id="mp-guest-panel" class="mp-panel hidden">
+          <p class="mp-step">1. Pega aquí el código que te envió el anfitrión.</p>
+          <textarea id="mp-guest-offer" class="mp-code" placeholder="Pega aquí el código del anfitrión..."></textarea>
+          <button id="mp-guest-join" class="mp-action-btn" type="button">Unirse</button>
+
+          <p class="mp-step">2. Envía este código de vuelta al anfitrión.</p>
+          <textarea id="mp-guest-answer" class="mp-code" readonly placeholder="Tu código de respuesta aparecerá aquí..."></textarea>
+          <button id="mp-guest-copy" class="mp-copy-btn" type="button">Copiar código</button>
+        </div>
+
+        <p id="mp-status" class="mp-status"></p>
+      </div>
+    </div>
   </div>
 
+  <script src="webrtc.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

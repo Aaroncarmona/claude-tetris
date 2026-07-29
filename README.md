@@ -22,6 +22,7 @@ Implementación del clásico **Tetris** en JavaScript vanilla, usando HTML5 Canv
     - [2. `style.css`](#2-stylecss)
     - [3. `game.js`](#3-gamejs)
     - [Flujo del juego](#flujo-del-juego)
+  - [Multijugador P2P](#multijugador-p2p)
   - [Tecnologías](#tecnologías)
   - [Estructura del proyecto](#estructura-del-proyecto)
   - [Personalización](#personalización)
@@ -42,6 +43,7 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Sistema de puntuación** clásico de Tetris (100 / 300 / 500 / 800 multiplicado por nivel).
 - **Niveles** que aumentan cada 10 líneas y aceleran la caída.
 - **Pausa** y **Game Over** con opción de reinicio.
+- **Multijugador P2P por turnos** vía WebRTC, sin ningún servidor backend (ver [Multijugador](#multijugador-p2p)).
 
 ---
 
@@ -140,6 +142,22 @@ Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara
 
 ---
 
+## Multijugador P2P
+
+Modo opcional en el que dos jugadores comparten **un mismo tablero** y se turnan para controlar la pieza. La conexión es 100% serverless: usa `RTCPeerConnection`/`RTCDataChannel` de WebRTC con un *handshake* manual de códigos de texto (SDP codificado en Base64) que los jugadores se intercambian por fuera (WhatsApp, Telegram, etc.). Solo se usan servidores STUN públicos para ayudar a resolver la ruta P2P entre NATs; no hay ningún backend ni servicio de señalización propio.
+
+**Flujo de emparejamiento:**
+
+1. El **anfitrión** pulsa el botón 🌐, elige "Crear sala" y genera un código (oferta SDP). Se lo envía al invitado.
+2. El **invitado** pega ese código en la pestaña "Unirse", pulsa "Unirse" y genera un código de respuesta que envía de vuelta al anfitrión.
+3. El anfitrión pega el código de respuesta y pulsa "Conectar". En cuanto el `RTCDataChannel` se abre, la partida arranca y el anfitrión mueve primero.
+
+**Lógica de turnos:** al fijarse una pieza (`lockPiece`), el estado del tablero se envía al rival por el `RTCDataChannel` y el turno cambia de jugador. Mientras un jugador espera su turno, todos sus controles (teclado, gestos táctiles, botonera) quedan bloqueados y ve el tablero atenuado (`grayscale` + opacidad reducida) con el aviso "Esperando el turno del oponente...", actualizado en tiempo real con cada movimiento del rival. El módulo de red vive en `webrtc.js`; la integración con el juego (estado de turno, envío/recepción de estado, UI de emparejamiento) está en `game.js`.
+
+> Nota: al ser P2P puro sin servidor TURN, la conexión puede fallar en redes con NAT simétrico o firewalls muy restrictivos.
+
+---
+
 ## Tecnologías
 
 - **HTML5** — marcado y dos elementos `<canvas>` (tablero y vista previa).
@@ -147,6 +165,7 @@ Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara
 - **JavaScript (ES6+) vanilla** — `const`/`let`, _arrow functions_, _spread operator_, `Array.from`, _template literals_…
 - **Canvas 2D API** — para todo el renderizado del juego.
 - **`requestAnimationFrame`** — para el bucle de juego sincronizado con el navegador.
+- **WebRTC (`RTCPeerConnection`, `RTCDataChannel`)** — para el multijugador P2P serverless.
 
 **Sin dependencias.** No hay `package.json`, ni bundler, ni transpilador.
 
@@ -156,9 +175,10 @@ Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara
 
 ```
 03-tetris/
-├── index.html      # Estructura del DOM y canvas
-├── style.css       # Estilos del juego (dark theme)
-├── game.js         # Toda la lógica del Tetris (~300 líneas)
+├── index.html      # Estructura del DOM, canvas y UI de emparejamiento
+├── style.css       # Estilos del juego (dark theme) y modal multijugador
+├── game.js         # Lógica del Tetris + integración de turnos multijugador
+├── webrtc.js       # Módulo WebRTC serverless (handshake, RTCDataChannel)
 └── README.md
 ```
 
