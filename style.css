@@ -132,6 +132,23 @@ body {
   display: none;
 }
 
+.mp-notice {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--accent);
+  background: var(--overlay-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 6px 14px;
+  margin-bottom: 10px;
+}
+
+.mp-notice.hidden {
+  display: none;
+}
+
 .turn-banner {
   position: absolute;
   top: 12px;

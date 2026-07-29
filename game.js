@@ -269,7 +269,9 @@ function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
   overlayTitle.textContent = 'GAME OVER';
-  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  overlayScore.textContent = mp.enabled
+    ? `Puntuación compartida: ${score.toLocaleString()}`
+    : `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
 }
 
@@ -286,6 +288,7 @@ function togglePause() {
     overlayScore.textContent = '';
     overlay.classList.remove('hidden');
   }
+  if (mp.enabled) mpSend('pause', { paused });
 }
 
 function loop(ts) {
@@ -345,6 +348,9 @@ function hardDropAction() {
 }
 
 document.addEventListener('keydown', e => {
+  const tag = e.target && e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+  if (mpModal && !mpModal.classList.contains('hidden')) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   if (mp.enabled && !mp.myTurn) return;
@@ -374,7 +380,8 @@ document.addEventListener('keydown', e => {
 restartBtn.addEventListener('click', () => {
   if (mp.enabled) {
     if (!mp.isHost) {
-      mpSetStatus('Solo el anfitrión puede reiniciar la partida.');
+      mpSend('restart-request', {});
+      mpNotify('Solicitud de revancha enviada al anfitrión.');
       return;
     }
     init();
@@ -542,8 +549,12 @@ const mpGuestAnswerEl = document.getElementById('mp-guest-answer');
 const mpGuestCopyBtn = document.getElementById('mp-guest-copy');
 const mpStatusEl = document.getElementById('mp-status');
 const mpBadge = document.getElementById('mp-status-badge');
+const mpNoticeEl = document.getElementById('mp-notice');
 const turnBanner = document.getElementById('turn-banner');
 const mpDimmable = document.getElementById('mp-dimmable');
+
+const MP_CONNECT_TIMEOUT = 20000;
+const MP_NOTICE_DURATION = 4000;
 
 const mp = {
   enabled: false,
@@ -555,9 +566,67 @@ const mp = {
 let mpRole = null;
 let hostSession = null;
 let guestSession = null;
+let mpConnectTimer = null;
+let mpNoticeTimer = null;
 
 function mpSetStatus(text) {
   mpStatusEl.textContent = text;
+}
+
+// Muestra un mensaje dentro del modal si está visible, o en el aviso
+// flotante junto al badge si el modal ya se ocultó (p.ej. tras conectar).
+function mpNotify(text) {
+  if (mpModal && !mpModal.classList.contains('hidden')) {
+    mpSetStatus(text);
+    return;
+  }
+  mpNoticeEl.textContent = text;
+  mpNoticeEl.classList.remove('hidden');
+  clearTimeout(mpNoticeTimer);
+  mpNoticeTimer = setTimeout(() => mpNoticeEl.classList.add('hidden'), MP_NOTICE_DURATION);
+}
+
+function mpClearConnectTimer() {
+  clearTimeout(mpConnectTimer);
+  mpConnectTimer = null;
+}
+
+function mpArmConnectTimer() {
+  mpClearConnectTimer();
+  mpConnectTimer = setTimeout(() => {
+    mpNotify('No se pudo conectar (tiempo agotado). Genera un código nuevo e inténtalo de nuevo.');
+    mpTeardown();
+  }, MP_CONNECT_TIMEOUT);
+}
+
+// Cierra y descarta cualquier sesión (anfitrión o invitado) en curso,
+// completada o no. Evita fugas de RTCPeerConnection al regenerar códigos,
+// cambiar de pestaña o abandonar una conexión a medias.
+function mpTeardown() {
+  mpClearConnectTimer();
+  if (hostSession) hostSession.close();
+  if (guestSession) guestSession.close();
+  hostSession = null;
+  guestSession = null;
+  mpRole = null;
+  mp.enabled = false;
+  mp.isHost = false;
+  mp.myTurn = false;
+  mp.channel = null;
+  mpBadge.classList.add('hidden');
+  turnBanner.classList.add('hidden');
+  mpDimmable.classList.remove('waiting');
+}
+
+function onIceStateChange(state) {
+  if (state === 'connected' || state === 'completed') {
+    mpClearConnectTimer();
+  } else if (state === 'failed') {
+    mpNotify('No se pudo conectar (red o firewall restrictivo). Genera un código nuevo e inténtalo de nuevo.');
+    mpTeardown();
+  } else if (state === 'disconnected' || state === 'closed') {
+    onChannelClose();
+  }
 }
 
 function mpSend(type, data) {
@@ -623,10 +692,35 @@ function handleRemoteMessage(msg) {
       mpDimmable.classList.remove('waiting');
       endGame();
       break;
+    case 'pause':
+      if (msg.paused) {
+        cancelAnimationFrame(animId);
+        overlayTitle.textContent = 'PAUSA';
+        overlayScore.textContent = '';
+        overlay.classList.remove('hidden');
+        mpNotify('Tu rival puso el juego en pausa.');
+      } else {
+        overlay.classList.add('hidden');
+        if (!mp.myTurn) {
+          turnBanner.classList.remove('hidden');
+        } else if (!gameOver) {
+          lastTime = performance.now();
+          animId = requestAnimationFrame(loop);
+        }
+      }
+      break;
+    case 'restart-request':
+      if (mp.isHost) {
+        init();
+        mpSend('start', { state: snapshotState() });
+        setMyTurn(true);
+      }
+      break;
   }
 }
 
 function onChannelOpen() {
+  mpClearConnectTimer();
   mp.enabled = true;
   mp.isHost = mpRole === 'host';
   mp.channel = mp.isHost ? hostSession.channel : guestSession.getChannel();
@@ -643,11 +737,8 @@ function onChannelOpen() {
 
 function onChannelClose() {
   if (!mp.enabled) return;
-  mp.enabled = false;
-  mpBadge.classList.add('hidden');
-  turnBanner.classList.add('hidden');
-  mpDimmable.classList.remove('waiting');
-  mpSetStatus('Conexión perdida. Volviendo a modo un jugador.');
+  mpTeardown();
+  mpNotify('Conexión perdida. Volviendo a modo un jugador.');
   if (!gameOver && !paused) {
     cancelAnimationFrame(animId);
     dropAccum = 0;
@@ -657,6 +748,10 @@ function onChannelClose() {
 }
 
 function mpSwitchTab(tab) {
+  // Descarta cualquier sesión a medias del rol que se abandona, para no
+  // dejar RTCPeerConnection huérfanas si el usuario cambia de pestaña.
+  if (tab === 'host' && guestSession) mpTeardown();
+  if (tab === 'guest' && hostSession) mpTeardown();
   mpTabHost.classList.toggle('active', tab === 'host');
   mpTabGuest.classList.toggle('active', tab === 'guest');
   mpHostPanel.classList.toggle('hidden', tab !== 'host');
@@ -668,9 +763,15 @@ mpTabHost.addEventListener('click', () => mpSwitchTab('host'));
 mpTabGuest.addEventListener('click', () => mpSwitchTab('guest'));
 
 mpToggleBtn.addEventListener('click', () => mpModal.classList.remove('hidden'));
-mpModalClose.addEventListener('click', () => mpModal.classList.add('hidden'));
+mpModalClose.addEventListener('click', () => {
+  mpModal.classList.add('hidden');
+  // Si había una conexión a medias (código generado pero no abierto aún),
+  // descartarla al cerrar el modal para no dejar el RTCPeerConnection vivo.
+  if (!mp.enabled && (hostSession || guestSession)) mpTeardown();
+});
 
 mpHostGenerateBtn.addEventListener('click', async () => {
+  if (hostSession || guestSession) mpTeardown();
   mpHostGenerateBtn.disabled = true;
   mpSetStatus('Generando código de invitación...');
   try {
@@ -679,6 +780,7 @@ mpHostGenerateBtn.addEventListener('click', async () => {
       onOpen: onChannelOpen,
       onClose: onChannelClose,
       onMessage: handleRemoteMessage,
+      onStateChange: onIceStateChange,
     });
     const code = await hostSession.createOfferCode();
     mpHostOfferEl.value = code;
@@ -697,6 +799,7 @@ mpHostConnectBtn.addEventListener('click', async () => {
   try {
     mpSetStatus('Conectando...');
     await hostSession.acceptAnswerCode(code);
+    mpArmConnectTimer();
   } catch (err) {
     mpSetStatus('Código inválido: ' + err.message);
   }
@@ -705,6 +808,7 @@ mpHostConnectBtn.addEventListener('click', async () => {
 mpGuestJoinBtn.addEventListener('click', async () => {
   const code = mpGuestOfferEl.value.trim();
   if (!code) { mpSetStatus('Pega el código del anfitrión primero.'); return; }
+  if (hostSession || guestSession) mpTeardown();
   mpGuestJoinBtn.disabled = true;
   try {
     mpSetStatus('Procesando código...');
@@ -713,10 +817,12 @@ mpGuestJoinBtn.addEventListener('click', async () => {
       onOpen: onChannelOpen,
       onClose: onChannelClose,
       onMessage: handleRemoteMessage,
+      onStateChange: onIceStateChange,
     });
     const answerCode = await guestSession.acceptOfferAndCreateAnswerCode(code);
     mpGuestAnswerEl.value = answerCode;
     mpSetStatus('Envía este código al anfitrión y espera a que confirme.');
+    mpArmConnectTimer();
   } catch (err) {
     mpSetStatus('Código inválido: ' + err.message);
   } finally {
