@@ -59,7 +59,7 @@ Four files, no modules/bundler — everything is loaded via plain `<script>` tag
 
 ## Controls
 
-Keyboard: `←`/`→` move, `↑` or `X` rotate CW, `↓` soft drop, `Space` hard drop, `P` pause/resume.
+Keyboard: `←`/`→` move, `↑` or `X` rotate CW, `↓` soft drop, `Space` hard drop, `P` or `Esc` pause/resume. Pausing opens a full pause menu (`#pause-menu` in `index.html`) with Reanudar/Reiniciar/Ver controles/Nivel inicial (persisted to `localStorage` under `tetris-start-level`); game and touch inputs are blocked while it's open.
 
 Touch: gestures only, no virtual button pad. Swipe ←/→ moves, swipe ↓ soft-drops, a short tap rotates, a fast downward swipe hard-drops (`handleTouchStart`/`handleTouchMove`/`handleTouchEnd` in `game.js`). There is intentionally no on-screen controls legend — the UI is kept clean; if controls change, update this section instead of adding UI text back.
 
