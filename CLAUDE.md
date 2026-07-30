@@ -23,7 +23,7 @@ Then visit `http://localhost:8000`. There are no automated tests in this repo.
 
 Four files, no modules/bundler — everything is loaded via plain `<script>` tags in `index.html`:
 
-- **`index.html`** — DOM structure: main `<canvas id="board">` (300×600), a top bar (`.topbar`) with the score/lines/level stats and the `<canvas id="next-canvas">` next-piece preview, the pause/game-over overlay, and the multiplayer modal/badge/notice elements. No on-screen help text or virtual button pad — see Controls.
+- **`index.html`** — DOM structure: main `<canvas id="board">` (300×600), a top bar (`.topbar`) with the score/lines/level stats and the `<canvas id="next-canvas">` next-piece preview, the pause/game-over overlay, a `#start-screen` overlay shown on load, and the multiplayer modal/badge/notice elements. No on-screen help text or virtual button pad — see Controls.
 - **`style.css`** — dark/retro arcade visual theme.
 - **`game.js`** — all game logic (single file, no classes, module-level `let` state), plus the multiplayer UI wiring at the bottom.
 - **`webrtc.js`** — `TetrisRTC`, the serverless WebRTC transport used by multiplayer (loaded before `game.js`).
@@ -40,6 +40,7 @@ Four files, no modules/bundler — everything is loaded via plain `<script>` tag
 - **Level/speed**: level increases every 10 cleared lines; `dropInterval = max(100, 1000 - (level - 1) * 90)` ms.
 - **Ghost piece** (`ghostY`): projects the current piece straight down to its landing row, drawn at `globalAlpha = 0.2`.
 - **Game over**: triggered in `spawn()` when a freshly spawned piece immediately collides.
+- **Local high scores**: `init()` no longer auto-runs on load — the page shows `#start-screen` (title, top-5 table, best combo/max lines, JUGAR / Resetear records buttons) until JUGAR is clicked. Records persist in `localStorage['tetris-highscores']` (`{ scores: [{name, score, lines, level, date}], bestCombo, maxLines }`, via `getStoredHighscores`/`storeHighscores` in `game.js`); a qualifying game-over score shows a name input in `#overlay` to save into the top 5.
 
 ### Tunable constants (all in `game.js`)
 

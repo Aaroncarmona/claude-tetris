@@ -40,11 +40,91 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggleBtn = document.getElementById('theme-toggle');
+const startScreen = document.getElementById('start-screen');
+const playBtn = document.getElementById('play-btn');
+const resetScoresBtn = document.getElementById('reset-scores-btn');
+const startHighscoreList = document.getElementById('start-highscore-list');
+const startBestComboEl = document.getElementById('start-best-combo');
+const startMaxLinesEl = document.getElementById('start-max-lines');
+const overlayHighscoreList = document.getElementById('overlay-highscore-list');
+const overlayBestComboEl = document.getElementById('overlay-best-combo');
+const overlayMaxLinesEl = document.getElementById('overlay-max-lines');
+const overlayNewscore = document.getElementById('overlay-newscore');
+const overlayNameInput = document.getElementById('overlay-name-input');
+const overlaySaveBtn = document.getElementById('overlay-save-btn');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let gridColor = '#22222e';
+// Combo (líneas encadenadas sin fallar) y máximo de líneas en un solo clear:
+// se rastrean por sesión y su mejor marca histórica se persiste en localStorage.
+let comboCount = 0;
+let sessionBestCombo = 0;
+let sessionMaxLines = 0;
+let highscoreSaved = false;
 
 const THEME_KEY = 'tetris-theme';
+const HIGHSCORES_KEY = 'tetris-highscores';
+
+function emptyHighscores() {
+  return { scores: [], bestCombo: 0, maxLines: 0 };
+}
+
+function getStoredHighscores() {
+  try {
+    const raw = localStorage.getItem(HIGHSCORES_KEY);
+    if (!raw) return emptyHighscores();
+    const parsed = JSON.parse(raw);
+    const scores = Array.isArray(parsed.scores) ? parsed.scores : [];
+    scores.sort((a, b) => b.score - a.score);
+    return {
+      scores: scores.slice(0, 5),
+      bestCombo: Number(parsed.bestCombo) || 0,
+      maxLines: Number(parsed.maxLines) || 0,
+    };
+  } catch (e) {
+    return emptyHighscores();
+  }
+}
+
+function storeHighscores(data) {
+  try {
+    localStorage.setItem(HIGHSCORES_KEY, JSON.stringify(data));
+  } catch (e) {
+    // localStorage no disponible (p. ej. modo privado); no persistir
+  }
+}
+
+function renderHighscoreList(listEl, scores, highlightIndex) {
+  listEl.textContent = '';
+  if (!scores.length) {
+    const li = document.createElement('li');
+    li.className = 'highscore-empty';
+    li.textContent = 'Sin récords todavía';
+    listEl.appendChild(li);
+    return;
+  }
+  scores.forEach((entry, i) => {
+    const li = document.createElement('li');
+    li.className = 'highscore-row' + (i === highlightIndex ? ' new' : '');
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = `${i + 1}. ${entry.name}`;
+    const scoreSpan = document.createElement('span');
+    scoreSpan.textContent = Number(entry.score).toLocaleString();
+    li.appendChild(nameSpan);
+    li.appendChild(scoreSpan);
+    listEl.appendChild(li);
+  });
+}
+
+function updateHighscoreDisplays(highlightIndex) {
+  const data = getStoredHighscores();
+  renderHighscoreList(startHighscoreList, data.scores, -1);
+  startBestComboEl.textContent = data.bestCombo;
+  startMaxLinesEl.textContent = data.maxLines;
+  renderHighscoreList(overlayHighscoreList, data.scores, highlightIndex);
+  overlayBestComboEl.textContent = data.bestCombo;
+  overlayMaxLinesEl.textContent = data.maxLines;
+}
 
 function getStoredTheme() {
   try {
@@ -149,6 +229,7 @@ function clearLines() {
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
+  return cleared;
 }
 
 function ghostY() {
@@ -176,7 +257,14 @@ function softDrop() {
 
 function lockPiece() {
   merge();
-  clearLines();
+  const cleared = clearLines();
+  if (cleared > 0) {
+    comboCount++;
+    if (comboCount > sessionBestCombo) sessionBestCombo = comboCount;
+    if (cleared > sessionMaxLines) sessionMaxLines = cleared;
+  } else {
+    comboCount = 0;
+  }
   spawn();
   if (mp.enabled && mp.myTurn) {
     if (gameOver) {
@@ -288,8 +376,49 @@ function endGame() {
   overlayScore.textContent = mp.enabled
     ? `Puntuación compartida: ${score.toLocaleString()}`
     : `Puntuación: ${score.toLocaleString()}`;
+
+  highscoreSaved = false;
+
+  // Persistir mejor combo / máx. líneas de esta sesión frente a la marca histórica.
+  const stored = getStoredHighscores();
+  stored.bestCombo = Math.max(stored.bestCombo, sessionBestCombo);
+  stored.maxLines = Math.max(stored.maxLines, sessionMaxLines);
+  storeHighscores(stored);
+
+  const qualifies = score > 0 && (stored.scores.length < 5 || score > stored.scores[stored.scores.length - 1].score);
+  overlayNewscore.classList.toggle('hidden', !qualifies);
+  if (qualifies) overlayNameInput.value = '';
+
+  updateHighscoreDisplays(-1);
   overlay.classList.remove('hidden');
 }
+
+function saveHighscore() {
+  if (highscoreSaved || overlayNewscore.classList.contains('hidden')) return;
+  const name = overlayNameInput.value.trim().slice(0, 12) || 'Jugador';
+  const stored = getStoredHighscores();
+  const entry = { name, score, lines, level, date: Date.now() };
+  stored.scores.push(entry);
+  stored.scores.sort((a, b) => b.score - a.score);
+  stored.scores = stored.scores.slice(0, 5);
+  storeHighscores(stored);
+  highscoreSaved = true;
+  overlayNewscore.classList.add('hidden');
+  updateHighscoreDisplays(stored.scores.indexOf(entry));
+}
+
+overlaySaveBtn.addEventListener('click', saveHighscore);
+
+playBtn.addEventListener('click', () => {
+  startScreen.classList.add('hidden');
+  init();
+});
+
+resetScoresBtn.addEventListener('click', () => {
+  if (!confirm('¿Seguro que quieres borrar la tabla de récords local?')) return;
+  storeHighscores(emptyHighscores());
+  updateHighscoreDisplays(-1);
+});
 
 function togglePause() {
   if (gameOver) return;
@@ -334,6 +463,10 @@ function init() {
   gameOver = false;
   dropInterval = 1000;
   dropAccum = 0;
+  comboCount = 0;
+  sessionBestCombo = 0;
+  sessionMaxLines = 0;
+  highscoreSaved = false;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
@@ -367,6 +500,7 @@ document.addEventListener('keydown', e => {
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
   if (mpModal && !mpModal.classList.contains('hidden')) return;
+  if (startScreen && !startScreen.classList.contains('hidden')) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   if (mp.enabled && !mp.myTurn) return;
@@ -652,6 +786,7 @@ function setMyTurn(isMine) {
 function handleRemoteMessage(msg) {
   switch (msg.type) {
     case 'start':
+      startScreen.classList.add('hidden');
       overlay.classList.add('hidden');
       applyState(msg.state);
       setMyTurn(false);
@@ -707,6 +842,7 @@ function onChannelOpen() {
   mpSetStatus('¡Conectado!');
   setTimeout(() => mpModal.classList.add('hidden'), 600);
   if (mp.isHost) {
+    startScreen.classList.add('hidden');
     init();
     mpSend('start', { state: snapshotState() });
     setMyTurn(true);
@@ -823,4 +959,4 @@ mpHostCopyBtn.addEventListener('click', () => mpCopyToClipboard(mpHostOfferEl));
 mpGuestCopyBtn.addEventListener('click', () => mpCopyToClipboard(mpGuestAnswerEl));
 
 initTheme();
-init();
+updateHighscoreDisplays(-1);

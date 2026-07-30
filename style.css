@@ -347,6 +347,175 @@ body {
   opacity: 0.85;
 }
 
+/* ---- Pantalla de inicio ---- */
+.start-overlay {
+  position: fixed;
+  z-index: 15;
+  border-radius: 0;
+  max-width: none;
+}
+
+.start-overlay .overlay-box {
+  max-width: 320px;
+  width: 100%;
+  padding: 0 16px;
+}
+
+.start-overlay.hidden {
+  display: none;
+}
+
+.start-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 10px;
+  color: var(--accent);
+  text-shadow: 0 0 20px var(--title-shadow);
+}
+
+#play-btn {
+  margin-top: 4px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 0.15s;
+}
+
+#play-btn:hover {
+  opacity: 0.85;
+}
+
+.reset-scores-btn {
+  background: transparent;
+  color: var(--control-text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.reset-scores-btn:hover {
+  border-color: var(--overlay-title);
+  color: var(--overlay-title);
+}
+
+/* ---- Tabla de records local ---- */
+.highscore-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.highscore-title {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--label-color);
+  text-transform: uppercase;
+}
+
+.highscore-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.highscore-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--panel-border);
+  color: var(--fg);
+}
+
+.highscore-row.new {
+  position: relative;
+  border-color: var(--accent);
+  overflow: hidden;
+}
+
+.highscore-row.new::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.highscore-empty {
+  font-size: 12px;
+  color: var(--control-text);
+  text-align: center;
+  padding: 6px 0;
+}
+
+.highscore-extra {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--label-color);
+}
+
+.highscore-extra strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ---- Formulario de nuevo récord ---- */
+.newscore-form {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.newscore-form.hidden {
+  display: none;
+}
+
+#overlay-name-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 13px;
+}
+
+#overlay-save-btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#overlay-save-btn:hover {
+  opacity: 0.85;
+}
+
 /* ---- Modal de emparejamiento multijugador ---- */
 .mp-modal {
   position: fixed;
