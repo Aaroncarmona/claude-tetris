@@ -48,9 +48,37 @@
           <div class="overlay-box">
             <p id="overlay-title">GAME OVER</p>
             <p id="overlay-score"></p>
+            <div id="overlay-newscore" class="newscore-form hidden">
+              <input id="overlay-name-input" type="text" maxlength="12" placeholder="Tu nombre" />
+              <button id="overlay-save-btn" type="button">Guardar</button>
+            </div>
+            <div class="highscore-panel">
+              <p class="highscore-title">Tabla de records local</p>
+              <ol id="overlay-highscore-list" class="highscore-list"></ol>
+              <div class="highscore-extra">
+                <span>Mejor combo: <strong id="overlay-best-combo">0</strong></span>
+                <span>Líneas máx.: <strong id="overlay-max-lines">0</strong></span>
+              </div>
+            </div>
             <button id="restart-btn">Reiniciar</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="start-screen" class="overlay start-overlay">
+      <div class="overlay-box">
+        <p class="start-title">TETRIS</p>
+        <div class="highscore-panel">
+          <p class="highscore-title">Tabla de records local</p>
+          <ol id="start-highscore-list" class="highscore-list"></ol>
+          <div class="highscore-extra">
+            <span>Mejor combo: <strong id="start-best-combo">0</strong></span>
+            <span>Líneas máx.: <strong id="start-max-lines">0</strong></span>
+          </div>
+        </div>
+        <button id="play-btn">JUGAR</button>
+        <button id="reset-scores-btn" class="reset-scores-btn" type="button">Resetear records</button>
       </div>
     </div>
 
