@@ -40,10 +40,11 @@ Four files, no modules/bundler — everything is loaded via plain `<script>` tag
 - **Level/speed**: level increases every 10 cleared lines; `dropInterval = max(100, 1000 - (level - 1) * 90)` ms.
 - **Ghost piece** (`ghostY`): projects the current piece straight down to its landing row, drawn at `globalAlpha = 0.2`.
 - **Game over**: triggered in `spawn()` when a freshly spawned piece immediately collides.
+- **Visual skins**: the `#skin-toggle` button cycles `retro → neon → pastel → pixel` (persisted in `localStorage` as `tetris-skin`, default `retro`). Each skin is an entry in `SKINS` (block color palette + draw `mode`) and a `:root[data-skin='...']` CSS block (UI colors); `drawBlock` dispatches to a per-mode renderer (`drawBlockRetro`/`Neon`/`Pastel`/`Pixel`). Switching applies live — no reload — by setting `data-skin` on `<html>`, re-reading `--grid-line`, and redrawing the board/next canvases.
 
 ### Tunable constants (all in `game.js`)
 
-`COLS`, `ROWS`, `BLOCK` (cell size in px), `COLORS`, `LINE_SCORES`, `dropInterval`. If `COLS`/`ROWS`/`BLOCK` change, update the `width`/`height` of `<canvas id="board">` in `index.html` to match (`COLS × BLOCK` and `ROWS × BLOCK`).
+`COLS`, `ROWS`, `BLOCK` (cell size in px), `SKINS` (per-skin color palettes), `LINE_SCORES`, `dropInterval`. If `COLS`/`ROWS`/`BLOCK` change, update the `width`/`height` of `<canvas id="board">` in `index.html` to match (`COLS × BLOCK` and `ROWS × BLOCK`).
 
 ### Multiplayer P2P (`webrtc.js` + MP block in `game.js`)
 

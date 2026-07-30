@@ -17,23 +17,64 @@
   --board-shadow: rgba(0, 0, 0, 0.6);
 }
 
-:root[data-theme='light'] {
-  --bg: #f0f0f5;
-  --fg: #20202a;
-  --accent: #3b5bdb;
-  --accent-contrast: #ffffff;
-  --surface: #ffffff;
-  --panel-border: #d5d5e2;
-  --label-color: #6b6b85;
-  --control-text: #555560;
-  --kbd-bg: #e9e9f2;
-  --kbd-border: #c9c9d8;
-  --kbd-text: #55555f;
-  --overlay-bg: rgba(240, 240, 245, 0.85);
-  --overlay-title: #c62828;
-  --grid-line: #dcdce6;
-  --title-shadow: rgba(59, 91, 219, 0.25);
-  --board-shadow: rgba(0, 0, 0, 0.15);
+/* data-skin='retro' (o sin atributo) usa las variables base de :root de
+   arriba, así que no necesita su propio bloque. */
+
+:root[data-skin='neon'] {
+  --bg: #000003;
+  --fg: #e8e8ff;
+  --accent: #ff2bd6;
+  --accent-contrast: #050014;
+  --surface: #0a0014;
+  --panel-border: #3a1a4a;
+  --label-color: #6a4a8a;
+  --control-text: #9a7aca;
+  --kbd-bg: #1a0a2a;
+  --kbd-border: #4a2a6a;
+  --kbd-text: #c9a9f9;
+  --overlay-bg: rgba(5, 0, 15, 0.85);
+  --overlay-title: #ff2bd6;
+  --grid-line: #1a0a2a;
+  --title-shadow: rgba(0, 229, 255, 0.6);
+  --board-shadow: rgba(255, 43, 214, 0.35);
+}
+
+:root[data-skin='pastel'] {
+  --bg: #fdf3f9;
+  --fg: #5a4a5f;
+  --accent: #f2a6c6;
+  --accent-contrast: #4a2a3a;
+  --surface: #fffafc;
+  --panel-border: #f0d9e6;
+  --label-color: #b090a5;
+  --control-text: #a888a0;
+  --kbd-bg: #f7e6ef;
+  --kbd-border: #edd0e0;
+  --kbd-text: #a878a0;
+  --overlay-bg: rgba(253, 243, 249, 0.85);
+  --overlay-title: #e08aa8;
+  --grid-line: #f5e2ec;
+  --title-shadow: rgba(242, 166, 198, 0.4);
+  --board-shadow: rgba(200, 150, 180, 0.2);
+}
+
+:root[data-skin='pixel'] {
+  --bg: #101018;
+  --fg: #d8d8d8;
+  --accent: #8bd450;
+  --accent-contrast: #0f0f17;
+  --surface: #1c1c26;
+  --panel-border: #33333f;
+  --label-color: #5a5a68;
+  --control-text: #888888;
+  --kbd-bg: #26262f;
+  --kbd-border: #3f3f4c;
+  --kbd-text: #aaaaaa;
+  --overlay-bg: rgba(16, 16, 24, 0.8);
+  --overlay-title: #e5a44d;
+  --grid-line: #2a2a34;
+  --title-shadow: rgba(139, 212, 80, 0.4);
+  --board-shadow: rgba(0, 0, 0, 0.6);
 }
 
 *, *::before, *::after {
