@@ -347,6 +347,97 @@ body {
   opacity: 0.85;
 }
 
+/* ---- Menú de pausa ---- */
+.pause-menu-box {
+  width: 100%;
+  max-width: 260px;
+  padding: 8px;
+}
+
+#pause-menu-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.pause-menu-btn {
+  width: 100%;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pause-menu-btn:hover {
+  border-color: var(--accent);
+}
+
+#pause-resume-btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+
+.pause-controls-panel {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.pause-controls-panel.hidden {
+  display: none;
+}
+
+.pause-controls-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--control-text);
+  text-align: left;
+}
+
+.pause-controls-list kbd {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  color: var(--kbd-text);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+}
+
+.pause-level-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.pause-level-row select {
+  background: var(--kbd-bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* ---- Modal de emparejamiento multijugador ---- */
 .mp-modal {
   position: fixed;

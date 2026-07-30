@@ -51,6 +51,33 @@
             <button id="restart-btn">Reiniciar</button>
           </div>
         </div>
+        <div id="pause-menu" class="overlay hidden">
+          <div class="overlay-box pause-menu-box">
+            <p id="pause-menu-title">PAUSA</p>
+            <button id="pause-resume-btn" class="pause-menu-btn">Reanudar</button>
+            <button id="pause-restart-btn" class="pause-menu-btn">Reiniciar</button>
+            <button id="pause-controls-btn" class="pause-menu-btn">Ver controles</button>
+
+            <div id="pause-controls-panel" class="pause-controls-panel hidden">
+              <ul class="pause-controls-list">
+                <li><kbd>←</kbd> / <kbd>→</kbd> mover</li>
+                <li><kbd>↑</kbd> o <kbd>X</kbd> rotar</li>
+                <li><kbd>↓</kbd> soft drop</li>
+                <li><kbd>Space</kbd> hard drop</li>
+                <li><kbd>P</kbd> / <kbd>Esc</kbd> pausa</li>
+                <li>Deslizar ←/→ mover</li>
+                <li>Deslizar ↓ soft drop</li>
+                <li>Toque corto rotar</li>
+                <li>Deslizamiento rápido hacia abajo hard drop</li>
+              </ul>
+            </div>
+
+            <div class="pause-level-row">
+              <label for="pause-start-level">Nivel inicial</label>
+              <select id="pause-start-level"></select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

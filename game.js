@@ -40,11 +40,21 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggleBtn = document.getElementById('theme-toggle');
+const pauseMenu = document.getElementById('pause-menu');
+const pauseResumeBtn = document.getElementById('pause-resume-btn');
+const pauseRestartBtn = document.getElementById('pause-restart-btn');
+const pauseControlsBtn = document.getElementById('pause-controls-btn');
+const pauseControlsPanel = document.getElementById('pause-controls-panel');
+const pauseStartLevelSelect = document.getElementById('pause-start-level');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let gridColor = '#22222e';
+let startLevel = 1;
 
 const THEME_KEY = 'tetris-theme';
+const START_LEVEL_KEY = 'tetris-start-level';
+const MIN_START_LEVEL = 1;
+const MAX_START_LEVEL = 15;
 
 function getStoredTheme() {
   try {
@@ -61,6 +71,40 @@ function storeTheme(theme) {
     // localStorage no disponible (p. ej. modo privado); no persistir
   }
 }
+
+function getStoredStartLevel() {
+  try {
+    const raw = localStorage.getItem(START_LEVEL_KEY);
+    const parsed = parseInt(raw, 10);
+    if (parsed >= MIN_START_LEVEL && parsed <= MAX_START_LEVEL) return parsed;
+    return MIN_START_LEVEL;
+  } catch (e) {
+    return MIN_START_LEVEL;
+  }
+}
+
+function storeStartLevel(lvl) {
+  try {
+    localStorage.setItem(START_LEVEL_KEY, String(lvl));
+  } catch (e) {
+    // localStorage no disponible (p. ej. modo privado); no persistir
+  }
+}
+
+function populateStartLevelSelect() {
+  for (let i = MIN_START_LEVEL; i <= MAX_START_LEVEL; i++) {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = String(i);
+    pauseStartLevelSelect.appendChild(opt);
+  }
+  pauseStartLevelSelect.value = String(getStoredStartLevel());
+}
+
+pauseStartLevelSelect.addEventListener('change', () => {
+  const lvl = parseInt(pauseStartLevelSelect.value, 10) || MIN_START_LEVEL;
+  storeStartLevel(lvl);
+});
 
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
@@ -145,7 +189,7 @@ function clearLines() {
   if (cleared) {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
+    level = startLevel + Math.floor(lines / 10);
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
@@ -296,13 +340,12 @@ function togglePause() {
   if (mp.enabled && !mp.myTurn) return;
   paused = !paused;
   if (!paused) {
+    pauseMenu.classList.add('hidden');
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    pauseMenu.classList.remove('hidden');
   }
   if (mp.enabled) mpSend('pause', { paused });
 }
@@ -329,16 +372,18 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  startLevel = getStoredStartLevel();
+  level = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  pauseMenu.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
@@ -367,7 +412,8 @@ document.addEventListener('keydown', e => {
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
   if (mpModal && !mpModal.classList.contains('hidden')) return;
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
+  if (pauseMenu && !pauseMenu.classList.contains('hidden')) return;
   if (paused || gameOver) return;
   if (mp.enabled && !mp.myTurn) return;
   switch (e.code) {
@@ -393,7 +439,7 @@ document.addEventListener('keydown', e => {
   mpSyncIfActive();
 });
 
-restartBtn.addEventListener('click', () => {
+function restartGame() {
   if (mp.enabled) {
     if (!mp.isHost) {
       mpSend('restart-request', {});
@@ -406,7 +452,21 @@ restartBtn.addEventListener('click', () => {
   } else {
     init();
   }
+}
+
+restartBtn.addEventListener('click', restartGame);
+
+pauseResumeBtn.addEventListener('click', () => togglePause());
+pauseRestartBtn.addEventListener('click', () => {
+  pauseControlsPanel.classList.add('hidden');
+  pauseMenu.classList.add('hidden');
+  restartGame();
 });
+pauseControlsBtn.addEventListener('click', () => {
+  pauseControlsPanel.classList.toggle('hidden');
+});
+
+populateStartLevelSelect();
 
 // ---- Controles táctiles (gestos) ----
 // Todas las acciones se controlan por gesto sobre el tablero: no hay
@@ -442,6 +502,7 @@ function handleTouchStart(e) {
 function handleTouchMove(e) {
   if (e.touches.length !== 1) return;
   e.preventDefault();
+  if (pauseMenu && !pauseMenu.classList.contains('hidden')) return;
   if (paused || gameOver) return;
   if (mp.enabled && !mp.myTurn) return;
 
@@ -475,6 +536,7 @@ function handleTouchEnd(e) {
   if (now - lastTouchEndTime < DOUBLE_TAP_MS) e.preventDefault();
   lastTouchEndTime = now;
 
+  if (pauseMenu && !pauseMenu.classList.contains('hidden')) return;
   if (paused || gameOver) return;
   if (mp.enabled && !mp.myTurn) return;
   const touch = e.changedTouches[0];
@@ -673,12 +735,10 @@ function handleRemoteMessage(msg) {
     case 'pause':
       if (msg.paused) {
         cancelAnimationFrame(animId);
-        overlayTitle.textContent = 'PAUSA';
-        overlayScore.textContent = '';
-        overlay.classList.remove('hidden');
+        pauseMenu.classList.remove('hidden');
         mpNotify('Tu rival puso el juego en pausa.');
       } else {
-        overlay.classList.add('hidden');
+        pauseMenu.classList.add('hidden');
         if (!mp.myTurn) {
           turnBanner.classList.remove('hidden');
         } else if (!gameOver) {
