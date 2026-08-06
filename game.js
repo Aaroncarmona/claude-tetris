@@ -519,13 +519,20 @@ const mpGuestPanel = document.getElementById('mp-guest-panel');
 const mpHostGenerateBtn = document.getElementById('mp-host-generate');
 const mpHostOfferEl = document.getElementById('mp-host-offer');
 const mpHostCopyBtn = document.getElementById('mp-host-copy');
+const mpHostQrEl = document.getElementById('mp-host-qr');
 const mpHostAnswerEl = document.getElementById('mp-host-answer');
 const mpHostConnectBtn = document.getElementById('mp-host-connect');
+const mpHostScanAnswerBtn = document.getElementById('mp-host-scan-answer');
 const mpGuestOfferEl = document.getElementById('mp-guest-offer');
 const mpGuestJoinBtn = document.getElementById('mp-guest-join');
+const mpGuestScanOfferBtn = document.getElementById('mp-guest-scan-offer');
 const mpGuestAnswerEl = document.getElementById('mp-guest-answer');
+const mpGuestQrEl = document.getElementById('mp-guest-qr');
 const mpGuestCopyBtn = document.getElementById('mp-guest-copy');
 const mpStatusEl = document.getElementById('mp-status');
+const mpScanOverlay = document.getElementById('mp-scan-overlay');
+const mpScanVideo = document.getElementById('mp-scan-video');
+const mpScanCancelBtn = document.getElementById('mp-scan-cancel');
 const mpBadge = document.getElementById('mp-status-badge');
 const mpNoticeEl = document.getElementById('mp-notice');
 const turnBanner = document.getElementById('turn-banner');
@@ -582,6 +589,7 @@ function mpArmConnectTimer() {
 // cambiar de pestaña o abandonar una conexión a medias.
 function mpTeardown() {
   mpClearConnectTimer();
+  mpStopScan();
   if (hostSession) hostSession.close();
   if (guestSession) guestSession.close();
   hostSession = null;
@@ -730,6 +738,7 @@ function mpSwitchTab(tab) {
   // dejar RTCPeerConnection huérfanas si el usuario cambia de pestaña.
   if (tab === 'host' && guestSession) mpTeardown();
   if (tab === 'guest' && hostSession) mpTeardown();
+  mpStopScan();
   mpTabHost.classList.toggle('active', tab === 'host');
   mpTabGuest.classList.toggle('active', tab === 'guest');
   mpHostPanel.classList.toggle('hidden', tab !== 'host');
@@ -743,6 +752,7 @@ mpTabGuest.addEventListener('click', () => mpSwitchTab('guest'));
 mpToggleBtn.addEventListener('click', () => mpModal.classList.remove('hidden'));
 mpModalClose.addEventListener('click', () => {
   mpModal.classList.add('hidden');
+  mpStopScan();
   // Si había una conexión a medias (código generado pero no abierto aún),
   // descartarla al cerrar el modal para no dejar el RTCPeerConnection vivo.
   if (!mp.enabled && (hostSession || guestSession)) mpTeardown();
@@ -762,7 +772,8 @@ mpHostGenerateBtn.addEventListener('click', async () => {
     });
     const code = await hostSession.createOfferCode();
     mpHostOfferEl.value = code;
-    mpSetStatus('Comparte este código con tu rival y espera su respuesta.');
+    mpRenderQr(mpHostQrEl, code);
+    mpSetStatus('Comparte este código (o el QR) con tu rival y espera su respuesta.');
   } catch (err) {
     mpSetStatus('Error al generar el código: ' + err.message);
   } finally {
@@ -799,7 +810,8 @@ mpGuestJoinBtn.addEventListener('click', async () => {
     });
     const answerCode = await guestSession.acceptOfferAndCreateAnswerCode(code);
     mpGuestAnswerEl.value = answerCode;
-    mpSetStatus('Envía este código al anfitrión y espera a que confirme.');
+    mpRenderQr(mpGuestQrEl, answerCode);
+    mpSetStatus('Envía este código (o el QR) al anfitrión y espera a que confirme.');
     mpArmConnectTimer();
   } catch (err) {
     mpSetStatus('Código inválido: ' + err.message);
@@ -807,6 +819,83 @@ mpGuestJoinBtn.addEventListener('click', async () => {
     mpGuestJoinBtn.disabled = false;
   }
 });
+
+function mpRenderQr(canvasEl, text) {
+  canvasEl.width = 220;
+  canvasEl.height = 220;
+  const result = QRCodeGen.render(canvasEl, text, { correctLevel: QRCodeGen.ErrorCorrectLevel.L });
+  canvasEl.classList.toggle('hidden', !result.ok);
+  if (!result.ok) {
+    mpSetStatus('El código es demasiado largo para mostrarse como QR; usa copiar/pegar.');
+  }
+}
+
+// ---- Escaneo de QR por cámara (BarcodeDetector nativo, sin dependencias) ----
+// Si el navegador no soporta BarcodeDetector o se deniega el permiso de
+// cámara, el copy-paste manual sigue disponible como alternativa.
+let mpScanStream = null;
+let mpScanRAF = null;
+let mpScanTargetEl = null;
+let mpScanDetector = null;
+
+function mpScanSupported() {
+  return 'BarcodeDetector' in window && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+function mpStopScan() {
+  if (mpScanRAF) cancelAnimationFrame(mpScanRAF);
+  mpScanRAF = null;
+  if (mpScanStream) {
+    mpScanStream.getTracks().forEach(track => track.stop());
+    mpScanStream = null;
+  }
+  mpScanVideo.srcObject = null;
+  mpScanOverlay.classList.add('hidden');
+  mpScanTargetEl = null;
+}
+
+async function mpScanTick() {
+  if (!mpScanStream) return;
+  try {
+    const codes = await mpScanDetector.detect(mpScanVideo);
+    if (codes && codes.length) {
+      const target = mpScanTargetEl;
+      mpStopScan();
+      if (target) {
+        target.value = codes[0].rawValue;
+        mpSetStatus('Código QR leído correctamente.');
+      }
+      return;
+    }
+  } catch (err) {
+    // Frame no decodificable todavía; se reintenta en el próximo tick.
+  }
+  mpScanRAF = requestAnimationFrame(mpScanTick);
+}
+
+async function mpStartScan(targetEl) {
+  if (!mpScanSupported()) {
+    mpSetStatus('Tu navegador no soporta escanear QR con la cámara. Usa copiar/pegar.');
+    return;
+  }
+  mpStopScan();
+  mpScanTargetEl = targetEl;
+  try {
+    mpScanDetector = new BarcodeDetector({ formats: ['qr_code'] });
+    mpScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    mpScanVideo.srcObject = mpScanStream;
+    await mpScanVideo.play();
+    mpScanOverlay.classList.remove('hidden');
+    mpScanRAF = requestAnimationFrame(mpScanTick);
+  } catch (err) {
+    mpSetStatus('No se pudo acceder a la cámara: ' + err.message);
+    mpStopScan();
+  }
+}
+
+mpHostScanAnswerBtn.addEventListener('click', () => mpStartScan(mpHostAnswerEl));
+mpGuestScanOfferBtn.addEventListener('click', () => mpStartScan(mpGuestOfferEl));
+mpScanCancelBtn.addEventListener('click', () => mpStopScan());
 
 function mpCopyToClipboard(textarea) {
   textarea.select();

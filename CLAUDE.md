@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A classic Tetris implementation in vanilla JavaScript, HTML5 Canvas, and CSS. No dependencies, no build step, no package.json.
+A classic Tetris implementation in vanilla JavaScript, HTML5 Canvas, and CSS. No dependencies, no build step, no package.json. The one exception is `vendor/qrcode.js` (see Multiplayer P2P below): a hand-written, dependency-free QR encoder vendored as a plain `<script>`, in the same spirit as `webrtc.js` — no npm package, no build step.
 
 ## Running the game
 
@@ -27,6 +27,7 @@ Four files, no modules/bundler — everything is loaded via plain `<script>` tag
 - **`style.css`** — dark/retro arcade visual theme.
 - **`game.js`** — all game logic (single file, no classes, module-level `let` state), plus the multiplayer UI wiring at the bottom.
 - **`webrtc.js`** — `TetrisRTC`, the serverless WebRTC transport used by multiplayer (loaded before `game.js`).
+- **`vendor/qrcode.js`** — `QRCodeGen`, the hand-written QR encoder used to render pairing codes as scannable QR (loaded before `webrtc.js`/`game.js`).
 
 ### Core model (`game.js`)
 
@@ -56,6 +57,11 @@ Four files, no modules/bundler — everything is loaded via plain `<script>` tag
 - **Connection lifecycle**: `mpArmConnectTimer`/`mpClearConnectTimer` bound the handshake to `MP_CONNECT_TIMEOUT` (20s); `oniceconnectionstatechange` (wired via `onStateChange`) drives `onIceStateChange`, which tears down on `failed` and routes `disconnected`/`closed` to `onChannelClose`. `mpTeardown()` is the single cleanup path — call it before starting a new session (regenerating a code, switching host/guest tabs) so `RTCPeerConnection`s never accumulate.
 - **UI feedback**: `mpSetStatus` writes inside the modal; `mpNotify` writes there while the modal is open and falls back to the `#mp-notice` floating banner once the modal auto-hides after connecting — use `mpNotify` for anything that can happen post-connection (disconnects, rematch requests).
 - Global `keydown` ignores input while the MP modal is open or while an `<input>`/`<textarea>` is focused, so players can paste codes containing spaces without triggering game controls.
+- **QR pairing** (`vendor/qrcode.js` + QR block in `game.js`): copy-paste remains the source of truth — QR is an alternate presentation/input layered on top of the same `mp-host-offer`/`mp-host-answer`/`mp-guest-offer`/`mp-guest-answer` textareas, not a separate protocol path.
+  - **Generating**: `mpRenderQr(canvasEl, text)` calls `QRCodeGen.render()` (Byte-mode-only QR encoder, error-correction level L) right after each textarea is populated (`mpHostGenerateBtn` → `#mp-host-qr`, `mpGuestJoinBtn` → `#mp-guest-qr`). If the SDP code is too large to fit even at QR version 40, `render()` returns `{ ok: false }` and the canvas stays hidden — the textarea/copy-paste flow is unaffected.
+  - **Scanning**: `mpStartScan(targetEl)` uses the native `BarcodeDetector` API (`formats: ['qr_code']`) over a `getUserMedia({ video: { facingMode: 'environment' } })` stream shown in the shared `#mp-scan-overlay`/`#mp-scan-video` — no vendored decoder needed. `mpScanTick` polls frames via `requestAnimationFrame` until a code is found, then writes `codes[0].rawValue` straight into the target textarea (`#mp-host-answer` or `#mp-guest-offer`) and calls `mpStopScan()`. If `BarcodeDetector`/`getUserMedia` isn't available or camera permission is denied, `mpSetStatus` shows an error and the textarea remains manually pasteable.
+  - `mpStopScan()` is the single camera cleanup path (stops media tracks, cancels the RAF loop, hides the overlay) — called from `mpTeardown`, `mpSwitchTab`, and the modal close handler so a stream is never left running in the background.
+  - `getUserMedia` requires a secure context (HTTPS or `localhost`); scanning silently isn't offered (falls back to the paste flow) when served over plain HTTP on a LAN.
 
 ## Controls
 

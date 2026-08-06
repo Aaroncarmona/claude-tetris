@@ -66,31 +66,42 @@
         </div>
 
         <div id="mp-host-panel" class="mp-panel">
-          <p class="mp-step">1. Genera tu código y envíaselo a tu rival.</p>
+          <p class="mp-step">1. Genera tu código y envíaselo a tu rival, o que escanee el QR.</p>
           <button id="mp-host-generate" class="mp-action-btn" type="button">Generar código</button>
+          <canvas id="mp-host-qr" class="mp-qr hidden"></canvas>
           <textarea id="mp-host-offer" class="mp-code" readonly placeholder="Tu código aparecerá aquí..."></textarea>
           <button id="mp-host-copy" class="mp-copy-btn" type="button">Copiar código</button>
 
-          <p class="mp-step">2. Pega aquí el código que te envíe tu rival y confirma.</p>
+          <p class="mp-step">2. Pega el código de tu rival, o escanea su QR, y confirma.</p>
           <textarea id="mp-host-answer" class="mp-code" placeholder="Pega aquí el código de tu rival..."></textarea>
+          <button id="mp-host-scan-answer" class="mp-copy-btn mp-scan-btn" type="button">📷 Escanear QR</button>
           <button id="mp-host-connect" class="mp-action-btn" type="button">Conectar</button>
         </div>
 
         <div id="mp-guest-panel" class="mp-panel hidden">
-          <p class="mp-step">1. Pega aquí el código que te envió el anfitrión.</p>
+          <p class="mp-step">1. Pega el código que te envió el anfitrión, o escanea su QR.</p>
           <textarea id="mp-guest-offer" class="mp-code" placeholder="Pega aquí el código del anfitrión..."></textarea>
+          <button id="mp-guest-scan-offer" class="mp-copy-btn mp-scan-btn" type="button">📷 Escanear QR</button>
           <button id="mp-guest-join" class="mp-action-btn" type="button">Unirse</button>
 
-          <p class="mp-step">2. Envía este código de vuelta al anfitrión.</p>
+          <p class="mp-step">2. Envía este código de vuelta al anfitrión, o que escanee el QR.</p>
+          <canvas id="mp-guest-qr" class="mp-qr hidden"></canvas>
           <textarea id="mp-guest-answer" class="mp-code" readonly placeholder="Tu código de respuesta aparecerá aquí..."></textarea>
           <button id="mp-guest-copy" class="mp-copy-btn" type="button">Copiar código</button>
         </div>
 
         <p id="mp-status" class="mp-status"></p>
+
+        <div id="mp-scan-overlay" class="mp-scan-overlay hidden">
+          <video id="mp-scan-video" class="mp-scan-video" playsinline autoplay muted></video>
+          <p class="mp-scan-hint">Apunta la cámara al código QR...</p>
+          <button id="mp-scan-cancel" class="mp-copy-btn" type="button">Cancelar</button>
+        </div>
       </div>
     </div>
   </div>
 
+  <script src="vendor/qrcode.js"></script>
   <script src="webrtc.js"></script>
   <script src="game.js"></script>
 </body>
