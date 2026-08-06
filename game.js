@@ -897,6 +897,14 @@ mpHostScanAnswerBtn.addEventListener('click', () => mpStartScan(mpHostAnswerEl))
 mpGuestScanOfferBtn.addEventListener('click', () => mpStartScan(mpGuestOfferEl));
 mpScanCancelBtn.addEventListener('click', () => mpStopScan());
 
+// Navegadores sin BarcodeDetector (p.ej. Safari/iOS) no pueden escanear:
+// se oculta el botón desde el arranque en vez de mostrarlo y fallar al
+// pulsarlo, para que copiar/pegar quede claro como la vía principal.
+if (!mpScanSupported()) {
+  mpHostScanAnswerBtn.classList.add('hidden');
+  mpGuestScanOfferBtn.classList.add('hidden');
+}
+
 function mpCopyToClipboard(textarea) {
   textarea.select();
   if (navigator.clipboard && navigator.clipboard.writeText) {

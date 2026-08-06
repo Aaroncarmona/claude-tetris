@@ -515,6 +515,10 @@ body {
   margin-top: -2px;
 }
 
+.mp-scan-btn.hidden {
+  display: none;
+}
+
 .mp-scan-overlay {
   position: absolute;
   inset: 0;
